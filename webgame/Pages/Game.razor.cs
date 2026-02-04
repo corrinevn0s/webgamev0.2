@@ -6,7 +6,6 @@ namespace webgame.Pages
 {
     public partial class Game : IDisposable
     {
-        // Константы игры
         private const int GridWidth = 20;
         private const int GridHeight = 15;
         private const int CellSize = 40;
@@ -16,7 +15,6 @@ namespace webgame.Pages
         private const int UpgradeCost = 30;
         private const int EnemyReward = 10;
 
-        // Состояние
         private GameCell[,] GameGrid = new GameCell[GridWidth, GridHeight];
         private List<Enemy> ActiveEnemies = new();
         private List<Tower> Towers = new();
@@ -25,7 +23,6 @@ namespace webgame.Pages
         private int NextEnemyId = 1;
         private int NextTowerId = 1;
 
-        // Переменные
         private int PlayerLives = StartLives;
         private int Money = StartMoney;
         private int CurrentWave = 0;
@@ -39,10 +36,10 @@ namespace webgame.Pages
 
         private bool CanStartWave => !IsWaveActive && ActiveEnemies.Count == 0;
         private string Instructions => BuyMode
-            ? "Кликните на пустую клетку чтобы поставить башню"
+            ? "ГЉГ«ГЁГЄГ­ГЁГІГҐ Г­Г  ГЇГіГ±ГІГіГѕ ГЄГ«ГҐГІГЄГі Г·ГІГ®ГЎГ» ГЇГ®Г±ГІГ ГўГЁГІГј ГЎГ ГёГ­Гѕ"
             : SelectedTower.HasValue
-                ? $"Выбрана башня [{SelectedTower.Value.X},{SelectedTower.Value.Y}]"
-                : "Кликните на башню чтобы выбрать";
+                ? $"Г‚Г»ГЎГ°Г Г­Г  ГЎГ ГёГ­Гї [{SelectedTower.Value.X},{SelectedTower.Value.Y}]"
+                : "ГЉГ«ГЁГЄГ­ГЁГІГҐ Г­Г  ГЎГ ГёГ­Гѕ Г·ГІГ®ГЎГ» ГўГ»ГЎГ°Г ГІГј";
 
         protected override void OnInitialized()
         {
@@ -70,7 +67,6 @@ namespace webgame.Pages
 
         private void SetupPath()
         {
-            // Создаем простой путь
             int pathY = GridHeight / 2;
 
             for (int x = 0; x < GridWidth; x++)
@@ -80,7 +76,6 @@ namespace webgame.Pages
                 EnemyPath.Add(new PathPoint { X = x, Y = pathY });
             }
 
-            // Начало и конец пути
             GameGrid[0, pathY].IsStart = true;
             GameGrid[GridWidth - 1, pathY].IsEnd = true;
         }
@@ -109,7 +104,7 @@ namespace webgame.Pages
             if (EnemiesSpawnedThisWave >= WaveEnemiesCount)
                 return;
 
-            // Спавним врага каждую секунду
+            // Г‘ГЇГ ГўГ­ГЁГ¬ ГўГ°Г ГЈГ  ГЄГ Г¦Г¤ГіГѕ Г±ГҐГЄГіГ­Г¤Гі
             if ((DateTime.Now - LastSpawnTime).TotalSeconds >= 1.0)
             {
                 var startPoint = EnemyPath.First();
@@ -147,7 +142,7 @@ namespace webgame.Pages
                 var currentIndex = EnemyPath.FindIndex(p => p.X == enemy.X && p.Y == enemy.Y);
                 if (currentIndex >= 0 && currentIndex < EnemyPath.Count - 1)
                 {
-                    // Очищаем старую клетку
+                    // ГЋГ·ГЁГ№Г ГҐГ¬ Г±ГІГ Г°ГіГѕ ГЄГ«ГҐГІГЄГі
                     GameGrid[enemy.X, enemy.Y].Enemy = null;
 
                     var nextPoint = EnemyPath[currentIndex + 1];
@@ -178,7 +173,7 @@ namespace webgame.Pages
                 if ((DateTime.Now - tower.LastShotTime).TotalMilliseconds < tower.FireRate)
                     continue;
 
-                // Ищем цель
+                // Г€Г№ГҐГ¬ Г¶ГҐГ«Гј
                 var target = ActiveEnemies
                     .Where(e => Math.Abs(e.X - tower.X) <= tower.Range &&
                                 Math.Abs(e.Y - tower.Y) <= tower.Range)
@@ -214,7 +209,7 @@ namespace webgame.Pages
                 CurrentWave++;
                 WaveEnemiesCount = 5 + CurrentWave * 2;
                 EnemiesSpawnedThisWave = 0;
-                Money += 50; // Награда за волну
+                Money += 50; // ГЌГ ГЈГ°Г Г¤Г  Г§Г  ГўГ®Г«Г­Гі
                 LastSpawnTime = DateTime.Now;
             }
         }
@@ -223,14 +218,13 @@ namespace webgame.Pages
         {
             var cell = GameGrid[x, y];
 
-            // Клик по башне - выбираем её
             if (cell.Tower != null)
             {
                 SelectedTower = (x, y);
                 BuyMode = false;
                 return;
             }
-            // Клик по пустой клетке в режиме покупки
+            // ГЉГ«ГЁГЄ ГЇГ® ГЇГіГ±ГІГ®Г© ГЄГ«ГҐГІГЄГҐ Гў Г°ГҐГ¦ГЁГ¬ГҐ ГЇГ®ГЄГіГЇГЄГЁ
             if (BuyMode && cell.CanPlaceTower && Money >= TowerCost)
             {
                 PlaceTower(x, y);
@@ -238,7 +232,6 @@ namespace webgame.Pages
             }
             else if (cell.CanPlaceTower)
             {
-                // Просто сбрасываем выбор
                 SelectedTower = null;
             }
         }
@@ -330,4 +323,5 @@ namespace webgame.Pages
             GameTimer?.Dispose();
         }
     }
+
 }
