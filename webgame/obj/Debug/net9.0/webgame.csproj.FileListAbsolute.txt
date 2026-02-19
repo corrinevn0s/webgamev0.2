@@ -1,4 +1,0 @@
-C:\Users\Student\Desktop\webgameV1.2-main\webgame-v0.1\webgame\obj\Debug\net9.0\webgame.GeneratedMSBuildEditorConfig.editorconfig
-C:\Users\Student\Desktop\webgameV1.2-main\webgame-v0.1\webgame\obj\Debug\net9.0\webgame.AssemblyInfoInputs.cache
-C:\Users\Student\Desktop\webgameV1.2-main\webgame-v0.1\webgame\obj\Debug\net9.0\webgame.AssemblyInfo.cs
-C:\Users\Student\Desktop\webgameV1.2-main\webgame-v0.1\webgame\obj\Debug\net9.0\webgame.csproj.CoreCompileInputs.cache
