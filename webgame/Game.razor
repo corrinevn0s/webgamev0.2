@@ -1,0 +1,357 @@
+﻿@* Game.razor *@
+@page "/"
+@using System.Numerics
+@using webgame
+@implements IDisposable
+
+<div class="game-wrapper">
+    <div class="game-header">
+        <div class="stats">
+            <div class="stat-item gold">
+                <span class="stat-icon">💰</span>
+                <span class="stat-value">@GameState.Gold</span>
+            </div>
+            <div class="stat-item health">
+                <span class="stat-icon">❤️</span>
+                <span class="stat-value">@GameState.PlayerHealth</span>
+            </div>
+            <div class="stat-item wave">
+                <span class="stat-icon">🌊</span>
+                <span class="stat-value">Волна @GameState.CurrentWave</span>
+            </div>
+        </div>
+        
+        <div class="game-controls">
+            <button class="btn-start-wave" 
+                    @onclick="StartWave" 
+                    disabled="@(GameState.IsWaveActive || GameState.IsGameOver)">
+                @(GameState.IsWaveActive ? "Бой идет..." : "Начать волну")
+            </button>
+            
+            @if (GameState.IsGameOver)
+            {
+                <button class="btn-restart" @onclick="RestartGame">
+                    🔄 Новая игра
+                </button>
+            }
+        </div>
+    </div>
+
+    <div class="game-container">
+        <svg class="game-canvas" 
+             @onclick="OnCanvasClick"
+             @onmousemove="OnMouseMove"
+             @onmouseleave="OnMouseLeave"
+             viewBox="0 0 800 600"
+             preserveAspectRatio="xMidYMid meet">
+            
+            <!-- Фон -->
+            <rect width="800" height="600" fill="#1a2a3a" />
+            
+            <!-- Левая дорожка -->
+            <rect x="0" y="0" width="100" height="600" fill="#2a3a4a" />
+            <line x1="100" y1="0" x2="100" y2="600" stroke="#4a5a6a" stroke-width="2" stroke-dasharray="5,5" />
+            
+            <!-- Правая дорожка -->
+            <rect x="700" y="0" width="100" height="600" fill="#3a2a2a" />
+            <line x1="700" y1="0" x2="700" y2="600" stroke="#6a4a4a" stroke-width="2" stroke-dasharray="5,5" />
+            
+            <!-- Финишная линия -->
+            <rect x="0" y="550" width="800" height="50" fill="#2a2a2a" opacity="0.5" />
+            <line x1="0" y1="550" x2="800" y2="550" stroke="#ff4444" stroke-width="3" />
+            
+            <!-- Слоты для башен -->
+            @foreach (var slot in GameState.TowerSlotsLeft)
+            {
+                <g class="tower-slot @(slot.IsOccupied ? "occupied" : "") 
+                                   @(HoveredSlot == slot ? "hovered" : "")"
+                   data-slot-index="@slot.Index"
+                   data-slot-side="left">
+                    <circle cx="@slot.Position.X" 
+                            cy="@slot.Position.Y" 
+                            r="25" 
+                            fill="@GetSlotColor(slot)"
+                            stroke="white" 
+                            stroke-width="2"
+                            stroke-dasharray="@(slot.IsOccupied ? "0" : "5,5")" />
+                    
+                    @if (!slot.IsOccupied && HoveredSlot == slot && SelectedTowerType != null)
+                    {
+                        <circle cx="@slot.Position.X" 
+                                cy="@slot.Position.Y" 
+                                r="30" 
+                                fill="none" 
+                                stroke="lime" 
+                                stroke-width="3"
+                                stroke-dasharray="5,5">
+                            <animate attributeName="r" 
+                                     values="25;35;25" 
+                                     dur="1s" 
+                                     repeatCount="indefinite" />
+                        </circle>
+                    }
+                </g>
+            }
+            
+            @foreach (var slot in GameState.TowerSlotsRight)
+            {
+                <g class="tower-slot @(slot.IsOccupied ? "occupied" : "")
+                                   @(HoveredSlot == slot ? "hovered" : "")"
+                   data-slot-index="@slot.Index"
+                   data-slot-side="right">
+                    <circle cx="@slot.Position.X" 
+                            cy="@slot.Position.Y" 
+                            r="25" 
+                            fill="@GetSlotColor(slot)"
+                            stroke="white" 
+                            stroke-width="2"
+                            stroke-dasharray="@(slot.IsOccupied ? "0" : "5,5")" />
+                    
+                    @if (!slot.IsOccupied && HoveredSlot == slot && SelectedTowerType != null)
+                    {
+                        <circle cx="@slot.Position.X" 
+                                cy="@slot.Position.Y" 
+                                r="30" 
+                                fill="none" 
+                                stroke="lime" 
+                                stroke-width="3"
+                                stroke-dasharray="5,5">
+                            <animate attributeName="r" 
+                                     values="25;35;25" 
+                                     dur="1s" 
+                                     repeatCount="indefinite" />
+                        </circle>
+                    }
+                </g>
+            }
+            
+            <!-- Башни -->
+            @foreach (var tower in GameState.Towers)
+            {
+                <Tower Tower="tower" 
+                       ShowRange="HoveredTower == tower" />
+            }
+            
+            <!-- Враги -->
+            @foreach (var enemy in GameState.Enemies)
+            {
+                <Enemy Enemy="enemy" />
+            }
+            
+            <!-- Снаряды -->
+            @foreach (var projectile in GameState.Projectiles)
+            {
+                <circle cx="@projectile.CurrentPosition.X" 
+                        cy="@projectile.CurrentPosition.Y" 
+                        r="5" 
+                        fill="@projectile.Color"
+                        filter="url(#glow)">
+                    <animate attributeName="r" 
+                             values="3;7;3" 
+                             dur="0.2s" 
+                             repeatCount="indefinite" />
+                </circle>
+            }
+            
+            <!-- Числа урона -->
+            @foreach (var damage in GameState.DamageNumbers)
+            {
+                <text x="@damage.Position.X" 
+                      y="@damage.Position.Y" 
+                      fill="yellow" 
+                      font-size="16" 
+                      font-weight="bold"
+                      text-anchor="middle">
+                    -@damage.Damage
+                    <animate attributeName="y" 
+                             from="@damage.Position.Y" 
+                             to="@(damage.Position.Y - 30)" 
+                             dur="1s" 
+                             fill="freeze" />
+                    <animate attributeName="opacity" 
+                             from="1" 
+                             to="0" 
+                             dur="1s" 
+                             fill="freeze" />
+                </text>
+            }
+            
+            <!-- Призрак башни при размещении -->
+            @if (IsPlacingTower && MousePosition != null && HoveredSlot != null && !HoveredSlot.IsOccupied)
+            {
+                <Tower Tower="new Tower(SelectedTowerType.Value, HoveredSlot.Position)" 
+                       ShowRange="true" />
+            }
+            
+            <!-- Фильтры для эффектов -->
+            <defs>
+                <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="blur" />
+                    <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                </filter>
+            </defs>
+        </svg>
+        
+        <!-- Магазин башен -->
+        <TowerShop GameState="GameState"
+                   OnTowerSelected="HandleTowerSelected" />
+        
+        <!-- Подсказки по управлению -->
+        <div class="controls-hint">
+            <div class="hint-item">🖱️ Клик по слоту - разместить башню</div>
+            <div class="hint-item">␣ Пробел - начать волну</div>
+            <div class="hint-item">1-4 - выбор башни</div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private GameState GameState { get; set; }
+    private TowerType? SelectedTowerType { get; set; }
+    private bool IsPlacingTower => SelectedTowerType != null;
+    private Vector2? MousePosition { get; set; }
+    private TowerSlot HoveredSlot { get; set; }
+    private Tower HoveredTower { get; set; }
+    
+    // Для отслеживания нажатий клавиш
+    private HashSet<Keys> pressedKeys = new HashSet<>();
+
+    protected override void OnInitialized()
+    {
+        GameState = new GameState();
+        GameState.OnStateChanged += StateHasChanged;
+        GameState.OnGameOver += () => InvokeAsync(StateHasChanged);
+        GameState.OnWaveCompleted += () => InvokeAsync(StateHasChanged);
+        
+        // Запускаем обработку клавиатуры
+        _ = RunKeyboardLoop();
+    }
+
+    private async Task RunKeyboardLoop()
+    {
+        while (true)
+        {
+            await InvokeAsync(() =>
+            {
+                // Проверяем клавиши 1-4
+                if (pressedKeys.Contains(Keys.D1)) SelectedTowerType = TowerType.Archer;
+                if (pressedKeys.Contains(Keys.D2)) SelectedTowerType = TowerType.IceMage;
+                if (pressedKeys.Contains(Keys.D3)) SelectedTowerType = TowerType.FireMage;
+                if (pressedKeys.Contains(Keys.D4)) SelectedTowerType = TowerType.Witch;
+                
+                // Пробел для старта волны
+                if (pressedKeys.Contains(Keys.Space) && !GameState.IsWaveActive && !GameState.IsGameOver)
+                {
+                    GameState.StartWave();
+                }
+            });
+            
+            await Task.Delay(50); // Проверяем каждые 50ms
+        }
+    }
+
+    private void StartWave()
+    {
+        GameState.StartWave();
+    }
+
+    private void RestartGame()
+    {
+        GameState.StopGameLoop();
+        GameState = new GameState();
+        GameState.OnStateChanged += StateHasChanged;
+        GameState.OnGameOver += () => InvokeAsync(StateHasChanged);
+        SelectedTowerType = null;
+        HoveredSlot = null;
+        StateHasChanged();
+    }
+
+    private void HandleTowerSelected(TowerType type)
+    {
+        SelectedTowerType = type;
+    }
+
+    private void OnCanvasClick(MouseEventArgs e)
+    {
+        if (IsPlacingTower && HoveredSlot != null && !HoveredSlot.IsOccupied)
+        {
+            var success = GameState.TryPlaceTower(
+                SelectedTowerType.Value, 
+                HoveredSlot.Index, 
+                HoveredSlot.Side == EnemySide.Left
+            );
+            
+            if (success)
+            {
+                SelectedTowerType = null;
+            }
+        }
+    }
+
+    private void OnMouseMove(MouseEventArgs e)
+    {
+        MousePosition = new Vector2((float)e.ClientX, (float)e.ClientY);
+        
+        // Определяем, над каким слотом мышь
+        HoveredSlot = FindHoveredSlot(MousePosition.Value);
+    }
+
+    private void OnMouseLeave()
+    {
+        MousePosition = null;
+        HoveredSlot = null;
+    }
+
+    private TowerSlot FindHoveredSlot(Vector2 mousePos)
+    {
+        // Конвертируем координаты мыши в координаты SVG
+        // В реальном проекте здесь нужна математика конвертации
+        // Для примера используем упрощенный вариант
+        
+        foreach (var slot in GameState.TowerSlotsLeft.Concat(GameState.TowerSlotsRight))
+        {
+            float distance = Vector2.Distance(mousePos, slot.Position);
+            if (distance < 30)
+            {
+                return slot;
+            }
+        }
+        
+        return null;
+    }
+
+    private string GetSlotColor(TowerSlot slot)
+    {
+        if (slot.IsOccupied) return "#4a4a4a";
+        if (slot == HoveredSlot && SelectedTowerType != null) return "#2a4a2a";
+        return "#2a2a3a";
+    }
+
+    // Обработка клавиш через JavaScript
+    [JSInvokable]
+    public void OnKeyDown(string key)
+    {
+        if (Enum.TryParse<Keys>(key, true, out var keys))
+        {
+            pressedKeys.Add(keys);
+        }
+    }
+
+    [JSInvokable]
+    public void OnKeyUp(string key)
+    {
+        if (Enum.TryParse<Keys>(key, true, out var keys))
+        {
+            pressedKeys.Remove(keys);
+        }
+    }
+
+    public void Dispose()
+    {
+        GameState.StopGameLoop();
+        GameState.OnStateChanged -= StateHasChanged;
+    }
+}

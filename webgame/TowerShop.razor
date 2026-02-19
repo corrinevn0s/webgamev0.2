@@ -1,0 +1,139 @@
+﻿@* TowerShop.razor *@
+@using System.Numerics
+@using webgame
+
+<div class="tower-shop">
+    <div class="shop-header">
+        <h3>🛡️ МАГАЗИН БАШЕН 🛡️</h3>
+        <div class="gold-display">
+            <span class="gold-icon">💰</span>
+            <span class="gold-amount">@GameState.Gold</span>
+        </div>
+    </div>
+
+    <div class="tower-grid">
+        @foreach (var towerType in Enum.GetValues(typeof(TowerType)).Cast<TowerType>())
+        {
+            var previewTower = CreatePreviewTower(towerType);
+            var isSelected = SelectedTowerType == towerType;
+            var canAfford = GameState.Gold >= previewTower.Cost;
+
+            <button @onclick="() => SelectTower(towerType)"
+                    disabled="@(!canAfford)"
+                    class="tower-card @(isSelected ? "selected" : "") @(!canAfford ? "cant-afford" : "")">
+
+                <div class="tower-preview" style="background-color: @previewTower.ColorHtml;">
+                    <span class="tower-emoji">@GetTowerEmoji(towerType)</span>
+                </div>
+
+                <div class="tower-info">
+                    <div class="tower-name">@previewTower.Name</div>
+
+                    <div class="tower-stats">
+                        <div class="stat">
+                            <span class="stat-icon">⚔️</span>
+                            <span>@previewTower.Damage</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-icon">🎯</span>
+                            <span>@previewTower.Range</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-icon">⚡</span>
+                            <span>@previewTower.FireRate.ToString("F1")</span>
+                        </div>
+                    </div>
+
+                    <div class="tower-cost">
+                        <span class="cost-icon">💰</span>
+                        <span class="cost-value">@previewTower.Cost</span>
+                    </div>
+                </div>
+            </button>
+        }
+    </div>
+
+    @if (SelectedTowerType != null)
+    {
+        var selectedTower = CreatePreviewTower(SelectedTowerType.Value);
+
+        <div class="placement-panel">
+            <div class="placement-info">
+                <div class="placement-icon">📍</div>
+                <div class="placement-text">
+                    <span class="placement-title">Размещение башни</span>
+                    <span class="placement-subtitle">@selectedTower.Name</span>
+                </div>
+            </div>
+
+            <div class="placement-controls">
+                <button class="btn-cancel" @onclick="CancelSelection">
+                    <span class="btn-icon">✖</span>
+                    <span>Отмена</span>
+                </button>
+
+                <div class="placement-hint">
+                    Кликните на игровом поле для размещения
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="error-message">
+            ⚠️ @ErrorMessage
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public GameState GameState { get; set; }
+
+    [Parameter]
+    public EventCallback<TowerType> OnTowerSelected { get; set; }
+
+    [Parameter]
+    public EventCallback OnTowerPlaced { get; set; }
+
+    private TowerType? SelectedTowerType { get; set; }
+    private string ErrorMessage { get; set; }
+
+    private Tower CreatePreviewTower(TowerType type)
+    {
+        return new Tower(type, Vector2.Zero);
+    }
+
+    private string GetTowerEmoji(TowerType type)
+    {
+        return type switch
+        {
+            TowerType.Archer => "🏹",
+            TowerType.IceMage => "❄️",
+            TowerType.FireMage => "🔥",
+            TowerType.Witch => "🧙",
+            _ => "🗼"
+        };
+    }
+
+    private async Task SelectTower(TowerType type)
+    {
+        try
+        {
+            SelectedTowerType = type;
+            ErrorMessage = string.Empty;
+            await OnTowerSelected.InvokeAsync(type);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Ошибка выбора башни: {ex.Message}";
+        }
+    }
+
+    private void CancelSelection()
+    {
+        SelectedTowerType = null;
+        ErrorMessage = string.Empty;
+    }
+}
